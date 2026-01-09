@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String     @id @default(cuid())
+  name            String?    @db.VarChar(255)
+  email           String?    @unique @db.VarChar(255)
+  emailVerified   DateTime?
+  image           String?    @db.VarChar(255)
+  role            UserRole   @default(READER)
+  bio             String?    @db.Text
+  avatarUrl       String?    @db.VarChar(255)
+  socialLinks     String?    @db.Text
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  username        String?    @unique @db.VarChar(255)
+  accounts        Account[]
+  comments        Comment[]
+  editedMagazines Magazine[]
+  media           Media[]
+  posts           Post[]
+  revisions       Revision[]
+  sessions        Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String? @db.VarChar(100)
+  provider          String  @db.VarChar(100)
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String? @db.VarChar(50)
+  scope             String? @db.VarChar(255)
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "Account_userId_fkey")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "Session_userId_fkey")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Category {
+  id       String     @id @default(cuid())
+  name     String     @unique
+  slug     String     @unique
+  parentId String?
+  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryToCategory")
+  posts    Post[]
+
+  @@index([parentId], map: "Category_parentId_fkey")
+}
+
+model Tag {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  slug  String     @unique
+  posts PostTags[]
+}
+
+model Magazine {
+  id            String         @id @default(cuid())
+  title         String?        @db.VarChar(255)
+  slug          String         @unique
+  description   String?        @db.Text
+  coverImageUrl String?        @db.VarChar(255)
+  issueNumber   Int?
+  publishedAt   DateTime?
+  status        MagazineStatus @default(DRAFT)
+  editorId      String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  pdfUrl        String?        @db.VarChar(255)
+  editor        User?          @relation(fields: [editorId], references: [id])
+  posts         Post[]
+
+  @@index([editorId], map: "Magazine_editorId_fkey")
+}
+
+model Post {
+  id              String         @id @default(cuid())
+  title           String         @db.VarChar(255)
+  slug            String         @unique
+  excerpt         String?        @db.Text
+  content         String         @db.LongText
+  type            PostType       @default(BLOG)
+  coverImageUrl   String?        @db.VarChar(255)
+  status          PostStatus     @default(DRAFT)
+  visibility      PostVisibility @default(PUBLIC)
+  isFeatured      Boolean        @default(false)
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  authorId        String
+  magazineId      String?
+  categoryId      String?
+  views           Int            @default(0)
+  likes           Int            @default(0)
+  metaTitle       String?        @db.VarChar(255)
+  metaDescription String?        @db.Text
+  metaKeywords    String?        @db.Text
+  slugHistory     String?        @db.LongText
+  seoSchema       String?        @db.LongText
+  settings        String?        @db.LongText
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  readMinutes     Int?
+  comments        Comment[]
+  author          User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category        Category?      @relation(fields: [categoryId], references: [id])
+  magazine        Magazine?      @relation(fields: [magazineId], references: [id])
+  media           PostMedia[]
+  tags            PostTags[]
+  revisions       Revision[]
+  viewLogs        ViewLog[]
+
+  @@index([authorId], map: "Post_authorId_fkey")
+  @@index([categoryId], map: "Post_categoryId_fkey")
+  @@index([magazineId], map: "Post_magazineId_fkey")
+}
+
+model PostTags {
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId], map: "PostTags_tagId_fkey")
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  postId    String
+  authorId  String?
+  content   String        @db.Text
+  parentId  String?
+  status    CommentStatus @default(APPROVED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  author    User?         @relation(fields: [authorId], references: [id])
+  parent    Comment?      @relation("CommentToComment", fields: [parentId], references: [id])
+  children  Comment[]     @relation("CommentToComment")
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([authorId], map: "Comment_authorId_fkey")
+  @@index([parentId], map: "Comment_parentId_fkey")
+  @@index([postId], map: "Comment_postId_fkey")
+}
+
+model Revision {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String   @db.LongText
+  title     String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([authorId], map: "Revision_authorId_fkey")
+  @@index([postId], map: "Revision_postId_fkey")
+}
+
+model Media {
+  id           String      @id @default(cuid())
+  url          String      @db.VarChar(255)
+  altText      String?     @db.VarChar(255)
+  caption      String?     @db.VarChar(255)
+  type         MediaType   @default(IMAGE)
+  uploadedById String?
+  createdAt    DateTime    @default(now())
+  uploadedBy   User?       @relation(fields: [uploadedById], references: [id])
+  posts        PostMedia[]
+
+  @@index([uploadedById], map: "Media_uploadedById_fkey")
+}
+
+model PostMedia {
+  postId  String
+  mediaId String
+  media   Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  post    Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, mediaId])
+  @@index([mediaId], map: "PostMedia_mediaId_fkey")
+}
+
+model Subscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?   @db.VarChar(255)
+  verified       Boolean   @default(false)
+  subscribedAt   DateTime  @default(now())
+  unsubscribedAt DateTime?
+}
+
+model ViewLog {
+  id        String   @id @default(cuid())
+  postId    String
+  viewerIp  String?
+  userAgent String?  @db.VarChar(255)
+  viewedAt  DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId], map: "ViewLog_postId_fkey")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  WRITER
+  READER
+}
+
+enum MagazineStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PostType {
+  BLOG
+  ARTICLE
+  FEATURE
+  INTERVIEW
+}
+
+enum PostStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PostVisibility {
+  PUBLIC
+  PRIVATE
+  SUBSCRIBERS_ONLY
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}

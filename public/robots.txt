@@ -1,0 +1,14 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api
+Disallow: /login
+Disallow: /sign-in
+Disallow: /register
+
+# Host
+Host: https://gii.prabisha.com
+
+# Sitemaps
+Sitemap: https://gii.prabisha.com/sitemap.xml
