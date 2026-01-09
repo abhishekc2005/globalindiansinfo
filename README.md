@@ -1,3 +1,7 @@
+The website is live at : 
+
+https://gii.prabisha.com
+
 # NRI India Website - Rapid MVP Launch Plan (3 Weeks)
 
 ## MVP Philosophy
